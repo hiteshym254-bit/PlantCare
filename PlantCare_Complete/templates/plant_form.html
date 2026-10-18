@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ form_title }} · PlantCare{% endblock %}
+{% block content %}
+<section class="form-page">
+  <a class="back-link" href="{{ url_for('dashboard') }}">← Back to my garden</a>
+  <div class="form-panel">
+    <div class="form-panel-heading"><span class="big-leaf">🌿</span><div><p class="eyebrow green">PLANT DETAILS</p><h1>{{ form_title }}</h1><p class="muted">A few details help us keep your care routine on track.</p></div></div>
+    <form method="post" class="plant-form">
+      <label class="span-two">Plant name <span class="required">*</span><input name="name" required maxlength="100" value="{{ plant.name if plant else request.form.get('name','') }}" placeholder="e.g. Money Plant"></label>
+      <label>Plant type<input name="plant_type" maxlength="80" value="{{ plant.plant_type if plant else request.form.get('plant_type','') }}" placeholder="e.g. Indoor foliage"></label>
+      <label>Water every (days) <span class="required">*</span><input name="watering_frequency" type="number" min="1" max="365" required value="{{ plant.watering_frequency if plant else request.form.get('watering_frequency','3') }}"><small>Choose a routine that suits your plant.</small></label>
+      <label>Last watered <span class="required">*</span><input name="last_watered" type="date" required value="{{ plant.last_watered.isoformat() if plant else request.form.get('last_watered', today.isoformat()) }}"></label>
+      <label>Fertilizer date <span class="optional">(optional)</span><input name="fertilizer_date" type="date" value="{{ plant.fertilizer_date.isoformat() if plant and plant.fertilizer_date else request.form.get('fertilizer_date','') }}"></label>
+      <label class="span-two">Sunlight<select name="sunlight">
+        {% set sun = plant.sunlight if plant else request.form.get('sunlight','Indirect sunlight') %}
+        {% for option in ['Full sun','Partial sun','Indirect sunlight','Shade'] %}<option value="{{ option }}" {% if sun == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+      </select></label>
+      <label class="span-two">Care notes <span class="optional">(optional)</span><textarea name="notes" rows="4" maxlength="3000" placeholder="Any special care instructions...">{{ plant.notes if plant else request.form.get('notes','') }}</textarea></label>
+      <div class="form-actions span-two"><a class="button button-soft" href="{{ url_for('dashboard') }}">Cancel</a><button class="button" type="submit">{{ submit_label }} <span>→</span></button></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

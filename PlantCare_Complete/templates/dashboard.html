@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}My garden · PlantCare{% endblock %}
+{% block content %}
+<section class="welcome-row">
+  <div><p class="eyebrow green">YOUR PERSONAL GARDEN</p><h1>Good day, {{ logged_in_user.name.split()[0] }} <span class="wave">🌱</span></h1><p class="muted">Small routines. Happier plants.</p></div>
+  <a class="button" href="{{ url_for('add_plant') }}">＋ Add a plant</a>
+</section>
+
+<section class="hero-banner">
+  <div><p class="eyebrow light">A MOMENT FOR YOUR GREEN FRIENDS</p><h2>Keep growing,<br>one day at a time.</h2><p>Check your reminders and give your plants the care they need.</p></div>
+  <div class="hero-plant" aria-hidden="true">🪴</div>
+  <div class="hero-circle circle-a"></div><div class="hero-circle circle-b"></div>
+</section>
+
+<section class="stats-grid">
+  <article class="stat-card"><span class="stat-icon mint">🌿</span><div><p>Total plants</p><strong>{{ plants|length }}</strong></div></article>
+  <article class="stat-card"><span class="stat-icon water">💧</span><div><p>Need watering</p><strong>{{ due|length }}</strong></div></article>
+  <article class="stat-card"><span class="stat-icon peach">☀️</span><div><p>Coming up</p><strong>{{ upcoming|length }}</strong></div></article>
+</section>
+
+<section class="section-heading"><div><p class="eyebrow green">DON'T MISS A DROP</p><h2>Watering reminders</h2></div><button id="notifyButton" class="button button-outline" type="button">Enable notifications</button></section>
+{% if due %}
+<div class="reminder-list">
+  {% for plant in due %}
+  <article class="reminder-item">
+    <span class="reminder-emoji">💧</span><div class="reminder-info"><strong>{{ plant.name }}</strong><p>{{ plant.watering_status }}{% if plant.days_until_water < 0 %} · {{ -plant.days_until_water }} day(s) overdue{% endif %}</p></div>
+    <form method="post" action="{{ url_for('water_plant', plant_id=plant.id) }}"><button class="button button-small" type="submit">Watered ✓</button></form>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-reminder"><span>✨</span><div><strong>You're all caught up!</strong><p>No plants need watering today. Keep up the lovely care.</p></div></div>
+{% endif %}
+
+<section class="section-heading plants-heading"><div><p class="eyebrow green">YOUR COLLECTION</p><h2>My plants <span class="count-pill">{{ plants|length }}</span></h2></div></section>
+{% if plants %}
+<div class="plant-grid">
+  {% for plant in plants %}
+  <article class="plant-card">
+    <div class="plant-card-top"><div class="plant-illustration">{{ ["🪴","🌿","🌵","🌱","🌷","🍃"][(plant.id-1) % 6] }}</div><span class="status-chip {% if plant.days_until_water <= 0 %}status-due{% else %}status-ok{% endif %}">{{ plant.watering_status }}</span></div>
+    <h3>{{ plant.name }}</h3><p class="plant-type">{{ plant.plant_type or "Green companion" }}</p>
+    <div class="plant-meta"><span>💧 Every {{ plant.watering_frequency }} day(s)</span><span>☀️ {{ plant.sunlight }}</span></div>
+    <div class="next-water"><span>Next watering</span><strong>{{ plant.next_watering.strftime("%d %b %Y") }}</strong></div>
+    {% if plant.notes %}<p class="plant-notes">{{ plant.notes }}</p>{% endif %}
+    {% if plant.fertilizer_date %}<p class="fertilizer-line">🌼 Fertilizer date: {{ plant.fertilizer_date.strftime("%d %b %Y") }}</p>{% endif %}
+    <div class="plant-actions">
+      <form method="post" action="{{ url_for('water_plant', plant_id=plant.id) }}"><button class="button button-small" type="submit">💧 Watered</button></form>
+      <a class="button button-small button-soft" href="{{ url_for('edit_plant', plant_id=plant.id) }}">Edit</a>
+      <form method="post" action="{{ url_for('delete_plant', plant_id=plant.id) }}" data-confirm="Delete {{ plant.name }}? This cannot be undone."><button class="text-danger" type="submit">Delete</button></form>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-garden"><div class="empty-pot">🌱</div><h3>Your garden starts here</h3><p>Add your first plant to track its watering routine and care notes.</p><a class="button" href="{{ url_for('add_plant') }}">＋ Add your first plant</a></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Sign in · PlantCare{% endblock %}
+{% block content %}
+<section class="auth-layout">
+  <div class="auth-art">
+    <div class="sun-orb"></div><div class="art-leaf leaf-one">🌿</div><div class="art-leaf leaf-two">🪴</div>
+    <p class="eyebrow">GROW AT YOUR OWN PACE</p>
+    <h1>A little care<br>goes a <em>long way.</em></h1>
+    <p class="art-copy">Keep every plant thriving with simple watering reminders and a garden that is yours.</p>
+    <div class="art-pills"><span>🌱 Personal garden</span><span>💧 Smart reminders</span></div>
+  </div>
+  <div class="auth-card">
+    <p class="eyebrow green">WELCOME BACK</p><h2>Sign in</h2><p class="muted">Your plants are happy to see you.</p>
+    <form method="post" class="form-stack">
+      <label>Username<input name="username" autocomplete="username" required maxlength="40" placeholder="Your username"></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required placeholder="Your password"></label>
+      <button class="button full" type="submit">Sign in <span>→</span></button>
+    </form>
+    <p class="auth-switch">New to PlantCare? <a href="{{ url_for('register') }}">Create an account</a></p>
+    <p class="tiny-note">Your plants are private to your account.</p>
+  </div>
+</section>
+{% endblock %}

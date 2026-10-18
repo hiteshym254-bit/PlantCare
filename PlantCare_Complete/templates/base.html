@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#174d35">
+  <meta name="description" content="A simple, personal plant-care and watering reminder app.">
+  <link rel="manifest" href="{{ url_for('manifest') }}">
+  <link rel="icon" href="{{ url_for('static', filename='leaf.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <title>{% block title %}PlantCare{% endblock %}</title>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('dashboard') if logged_in_user else url_for('login') }}">
+      <span class="brand-icon">🌿</span><span>PlantCare<span class="brand-dot">.</span></span>
+    </a>
+    {% if logged_in_user %}
+    <nav class="nav-actions">
+      <a class="nav-link" href="{{ url_for('dashboard') }}">My garden</a>
+      <a class="button button-small" href="{{ url_for('add_plant') }}">＋ Add plant</a>
+      <form method="post" action="{{ url_for('logout') }}"><button class="logout" type="submit">Log out</button></form>
+    </nav>
+    {% endif %}
+  </header>
+  <main class="page">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}<section class="flash-stack" aria-live="polite">
+        {% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}
+      </section>{% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">Made for happier plants <span>✦</span> PlantCare Reminder</footer>
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>

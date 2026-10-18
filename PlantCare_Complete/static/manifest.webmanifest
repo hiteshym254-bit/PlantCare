@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "PlantCare Reminder",
+  "short_name": "PlantCare",
+  "description": "Keep your plants healthy with personal watering reminders.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbfcf8",
+  "theme_color": "#174d35",
+  "orientation": "portrait",
+  "icons": [
+    {"src": "/static/leaf.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}
