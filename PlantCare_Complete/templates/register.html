@@ -20,16 +20,35 @@
                autocomplete="new-password" required minlength="8"
                placeholder="Choose a password">
         <button type="button"
-                onclick="togglePassword('register-password', this)">👁️</button>
+    onclick="
+        var p = document.getElementById('register-password');
+        if (p.type === 'password') {
+            p.type = 'text';
+            this.textContent = '🙈';
+        } else {
+            p.type = 'password';
+            this.textContent = '👁️';
+        }
+    "
+>👁️</button>
     </div>
 </label>
     <label>Confirm password
     <div class="password-wrapper">
         <input id="confirm-password" name="confirm_password" type="password"
                autocomplete="new-password" required minlength="8"
-               placeholder="Type it again">
-        <button type="button"
-                onclick="togglePassword('confirm-password', this)">👁️</button>
+               <button type="button"
+    onclick="
+        var p = document.getElementById('confirm-password');
+        if (p.type === 'password') {
+            p.type = 'text';
+            this.textContent = '🙈';
+        } else {
+            p.type = 'password';
+            this.textContent = '👁️';
+        }
+    "
+>👁️</button>
     </div>
 </label>
       <button class="button full" type="submit">Create my garden <span>→</span></button>
