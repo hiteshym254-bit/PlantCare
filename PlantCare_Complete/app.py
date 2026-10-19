@@ -101,6 +101,7 @@ def register():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         username = request.form.get("username", "").strip().lower()
+        email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         confirm = request.form.get("confirm_password", "")
         if not name or not username or not password:
