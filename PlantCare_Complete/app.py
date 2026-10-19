@@ -104,7 +104,7 @@ def register():
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         confirm = request.form.get("confirm_password", "")
-        if not name or not username or not password:
+      if not name or not username or not email or not password:
             flash("Please fill in every required field.", "error")
         elif len(name) > 80 or len(username) > 40:
             flash("Name or username is too long.", "error")
