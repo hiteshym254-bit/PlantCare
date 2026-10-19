@@ -37,16 +37,12 @@
     <div class="password-wrapper">
         <input id="confirm-password" name="confirm_password" type="password"
                autocomplete="new-password" required minlength="8"
-               <button type="button"
+              <button
+    type="button"
     onclick="
         var p = document.getElementById('confirm-password');
-        if (p.type === 'password') {
-            p.type = 'text';
-            this.textContent = '🙈';
-        } else {
-            p.type = 'password';
-            this.textContent = '👁️';
-        }
+        p.type = p.type === 'password' ? 'text' : 'password';
+        this.textContent = p.type === 'password' ? '👁️' : '🙈';
     "
 >👁️</button>
     </div>
