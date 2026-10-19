@@ -114,8 +114,15 @@ def register():
             flash("Passwords do not match.", "error")
         elif User.query.filter_by(username=username).first():
             flash("That username is already registered. Please sign in.", "error")
+            elif User.query.filter_by(email=email).first():
+    flash("That email is already registered. Please sign in.", "error")
         else:
-            user = User(name=name, username=username, password_hash=generate_password_hash(password))
+user = User(
+    name=name,
+    username=username,
+    email=email,
+    password_hash=generate_password_hash(password)
+)
             db.session.add(user)
             db.session.commit()
             session.clear()
