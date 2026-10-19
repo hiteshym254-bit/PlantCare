@@ -95,28 +95,48 @@ def index():
 
 
 @app.route("/register", methods=["GET", "POST"])
+
 def register():
     if current_user():
         return redirect(url_for("dashboard"))
+
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         username = request.form.get("username", "").strip().lower()
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         confirm = request.form.get("confirm_password", "")
-      if not name or not username or not email or not password:
+
+        if not name or not username or not email or not password:
             flash("Please fill in every required field.", "error")
         elif len(name) > 80 or len(username) > 40:
             flash("Name or username is too long.", "error")
+        elif len(email) > 254 or "@" not in email:
+            flash("Please enter a valid email address.", "error")
         elif len(password) < 8:
             flash("Use a password with at least 8 characters.", "error")
         elif password != confirm:
             flash("Passwords do not match.", "error")
         elif User.query.filter_by(username=username).first():
             flash("That username is already registered. Please sign in.", "error")
-            elif User.query.filter_by(email=email).first():
-    flash("That email is already registered. Please sign in.", "error")
+        elif User.query.filter_by(email=email).first():
+            flash("That email is already registered. Please sign in.", "error")
         else:
+            user = User(
+                name=name,
+                username=username,
+                email=email,
+                password_hash=generate_password_hash(password)
+            )
+            db.session.add(user)
+            db.session.commit()
+            session.clear()
+            session["user_id"] = user.id
+            flash("Welcome to PlantCare! Add your first plant.", "success")
+            return redirect(url_for("dashboard"))
+
+    return render_template("register.html")
+
 user = User(
     name=name,
     username=username,
