@@ -97,6 +97,7 @@ def index():
 @app.route("/register", methods=["GET", "POST"])
 
 
+
 def register():
     if current_user():
         return redirect(url_for("dashboard"))
@@ -122,23 +123,6 @@ def register():
             flash("That username is already registered. Please sign in.", "error")
         elif User.query.filter_by(email=email).first():
             flash("That email is already registered. Please sign in.", "error")
-        else:
-            user = User(
-                name=name,
-                username=username,
-                email=email,
-                password_hash=generate_password_hash(password)
-            )
-            db.session.add(user)
-            db.session.commit()
-            session.clear()
-            session["user_id"] = user.id
-            flash("Welcome to PlantCare! Add your first plant.", "success")
-            return redirect(url_for("dashboard"))
-
-    return render_template("register.html")
-
-
         else:
             user = User(
                 name=name,
