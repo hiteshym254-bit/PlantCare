@@ -1,58 +1,76 @@
+
 {% extends "base.html" %}
 {% block title %}Create account · PlantCare{% endblock %}
+
 {% block content %}
 <section class="auth-layout">
   <div class="auth-art">
-    <div class="sun-orb"></div><div class="art-leaf leaf-one">🌿</div><div class="art-leaf leaf-two">🪴</div>
+    <div class="sun-orb"></div>
+    <div class="art-leaf leaf-one">🌿</div>
+    <div class="art-leaf leaf-two">🪴</div>
+
     <p class="eyebrow">YOUR LITTLE GREEN SPACE</p>
     <h1>Let good things<br><em>take root.</em></h1>
-    <p class="art-copy">Create your free garden space and make plant care part of your everyday routine.</p>
-    <div class="art-pills"><span>🌼 Every plant counts</span><span>💚 Grow with care</span></div>
+    <p class="art-copy">
+      Create your free garden space and make plant care part of your everyday routine.
+    </p>
+    <div class="art-pills">
+      <span>🌼 Every plant counts</span>
+      <span>💚 Grow with care</span>
+    </div>
   </div>
+
   <div class="auth-card">
-    <p class="eyebrow green">GET STARTED</p><h2>Create account</h2><p class="muted">It takes just a minute.</p>
+    <p class="eyebrow green">GET STARTED</p>
+    <h2>Create account</h2>
+    <p class="muted">It takes just a minute.</p>
+
     <form method="post" class="form-stack">
-      <label>Your name<input name="name" autocomplete="name" required maxlength="80" placeholder="e.g. Hitesh"></label>
-    
-<label>Email<input type="email" name="email" autocomplete="email" required maxlength="254" placeholder="Enter your email address"></label>
-        <div class="password-wrapper">
+      <label>Your name
+        <input name="name" autocomplete="name" required maxlength="80"
+               placeholder="e.g. Hitesh">
+      </label>
+
+      <label>Username
+        <input name="username" autocomplete="username" required maxlength="40"
+               placeholder="Choose a username">
+      </label>
+
+      <label>Email
+        <input type="email" name="email" autocomplete="email" required
+               maxlength="254" placeholder="Enter your email address">
+      </label>
+
+      <label>Password</label>
+      <div class="password-wrapper">
         <input id="register-password" name="password" type="password"
                autocomplete="new-password" required minlength="8"
                placeholder="Choose a password">
-        <button type="button"
-    onclick="
-        var p = document.getElementById('register-password');
-        if (p.type === 'password') {
-            p.type = 'text';
-            this.textContent = '🙈';
-        } else {
-            p.type = 'password';
-            this.textContent = '👁️';
-        }
-    "
->👁️</button>
-    </div>
-</label>
-    <label>Confirm password
-    <div class="password-wrapper">
+        <button type="button" aria-label="Show password"
+                onclick="togglePassword('register-password', this)">👁️</button>
+      </div>
+
+      <label>Confirm password</label>
+      <div class="password-wrapper">
         <input id="confirm-password" name="confirm_password" type="password"
                autocomplete="new-password" required minlength="8"
-              <button
-    type="button"
-    onclick="
-        var p = document.getElementById('confirm-password');
-        p.type = p.type === 'password' ? 'text' : 'password';
-        this.textContent = p.type === 'password' ? '👁️' : '🙈';
-    "
->👁️</button>
-    </div>
-</label>
-      <button class="button full" type="submit">Create my garden <span>→</span></button>
+               placeholder="Enter your password again">
+        <button type="button" aria-label="Show password"
+                onclick="togglePassword('confirm-password', this)">👁️</button>
+      </div>
+
+      <button class="button full" type="submit">
+        Create my garden <span>→</span>
+      </button>
     </form>
-    <p class="auth-switch">Already have an account? <a href="{{ url_for('login') }}">Sign in</a></p>
+
+    <p class="auth-switch">
+      Already have an account?
+      <a href="{{ url_for('login') }}">Sign in</a>
+    </p>
   </div>
 </section>
-{% endblock %}
+
 <script>
 function togglePassword(inputId, button) {
     const input = document.getElementById(inputId);
@@ -68,3 +86,4 @@ function togglePassword(inputId, button) {
     }
 }
 </script>
+{% endblock %}
