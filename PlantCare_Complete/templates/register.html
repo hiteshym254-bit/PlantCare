@@ -14,11 +14,42 @@
     <form method="post" class="form-stack">
       <label>Your name<input name="name" autocomplete="name" required maxlength="80" placeholder="e.g. Hitesh"></label>
       <label>Username<input name="username" autocomplete="username" required maxlength="40" placeholder="Choose a username"></label>
-      <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters"></label>
-      <label>Confirm password<input name="confirm_password" type="password" autocomplete="new-password" required minlength="8" placeholder="Type it again"></label>
+      <label>Password
+    <div class="password-wrapper">
+        <input id="register-password" name="password" type="password"
+               autocomplete="new-password" required minlength="8"
+               placeholder="Choose a password">
+        <button type="button"
+                onclick="togglePassword('register-password', this)">👁️</button>
+    </div>
+</label>
+    <label>Confirm password
+    <div class="password-wrapper">
+        <input id="confirm-password" name="confirm_password" type="password"
+               autocomplete="new-password" required minlength="8"
+               placeholder="Type it again">
+        <button type="button"
+                onclick="togglePassword('confirm-password', this)">👁️</button>
+    </div>
+</label>
       <button class="button full" type="submit">Create my garden <span>→</span></button>
     </form>
     <p class="auth-switch">Already have an account? <a href="{{ url_for('login') }}">Sign in</a></p>
   </div>
 </section>
 {% endblock %}
+<script>
+function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+
+    if (input.type === "password") {
+        input.type = "text";
+        button.textContent = "🙈";
+        button.setAttribute("aria-label", "Hide password");
+    } else {
+        input.type = "password";
+        button.textContent = "👁️";
+        button.setAttribute("aria-label", "Show password");
+    }
+}
+</script>
