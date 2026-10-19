@@ -267,8 +267,26 @@ def health():
     return jsonify(status="ok")
 
 
+
 with app.app_context():
     db.create_all()
+
+    user_columns = {
+        column["name"]
+        for column in inspect(db.engine).get_columns("user")
+    }
+
+    with db.engine.begin() as connection:
+        if "email" not in user_columns:
+            connection.exec_driver_sql(
+                'ALTER TABLE "user" ADD COLUMN email VARCHAR(254)'
+            )
+
+        connection.exec_driver_sql(
+            'CREATE UNIQUE INDEX IF NOT EXISTS ix_user_email '
+            'ON "user" (email)'
+        )
+
 
 
 if __name__ == "__main__":
