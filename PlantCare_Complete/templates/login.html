@@ -13,7 +13,22 @@
     <p class="eyebrow green">WELCOME BACK</p><h2>Sign in</h2><p class="muted">Your plants are happy to see you.</p>
     <form method="post" class="form-stack">
       <label>Username<input name="username" autocomplete="username" required maxlength="40" placeholder="Your username"></label>
-      <label>Password<input name="password" type="password" autocomplete="current-password" required placeholder="Your password"></label>
+     <label>Password
+    <div class="password-wrapper">
+        <input
+            id="login-password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+            placeholder="Your password"
+        >
+        <button
+            type="button"
+            onclick="togglePassword('login-password', this)"
+        >👁️</button>
+    </div>
+</label>
       <button class="button full" type="submit">Sign in <span>→</span></button>
     </form>
     <p class="auth-switch">New to PlantCare? <a href="{{ url_for('register') }}">Create an account</a></p>
@@ -21,3 +36,16 @@
   </div>
 </section>
 {% endblock %}
+<script>
+function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+
+    if (input.type === "password") {
+        input.type = "text";
+        button.textContent = "🙈";
+    } else {
+        input.type = "password";
+        button.textContent = "👁️";
+    }
+}
+</script>
