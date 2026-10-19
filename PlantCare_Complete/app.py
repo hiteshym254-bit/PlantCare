@@ -29,6 +29,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
     username = db.Column(db.String(40), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(254), unique=True, nullable=True, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     plants = db.relationship("Plant", backref="owner", lazy=True, cascade="all, delete-orphan")
