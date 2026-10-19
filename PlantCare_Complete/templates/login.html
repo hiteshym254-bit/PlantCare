@@ -24,13 +24,19 @@
         placeholder="Your password"
         style="flex:1;"
     >
-    <button
-        type="button"
-        onclick="
-            var p = document.getElementById('login-password');
-            p.type = p.type === 'password' ? 'text' : 'password';
-        "
-    >👁️</button>
+   <button
+    type="button"
+    onclick="
+        var p = document.getElementById('login-password');
+        if (p.type === 'password') {
+            p.type = 'text';
+            this.textContent = '🙈';
+        } else {
+            p.type = 'password';
+            this.textContent = '👁️';
+        }
+    "
+>👁️</button>
 </div>
       <button class="button full" type="submit">Sign in <span>→</span></button>
     </form>
