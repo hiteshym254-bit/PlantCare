@@ -155,6 +155,21 @@ def login():
             return redirect(url_for("dashboard"))
         flash("Incorrect username or password.", "error")
     return render_template("login.html")
+    
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+
+        # Temporary response until secure email reset is implemented.
+        flash(
+            "Password reset is not configured yet. Please try again later.",
+            "info"
+        )
+        return redirect(url_for("forgot_password"))
+
+    return render_template("reset_password.html")
+
 
 
 @app.route("/logout", methods=["POST"])
