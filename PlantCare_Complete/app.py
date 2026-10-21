@@ -160,39 +160,48 @@ def login():
         flash("Incorrect username or password.", "error")
     return render_template("login.html")
     
+
 def send_password_reset_email(user, reset_url):
-    """Send a time-limited password-reset link using SMTP settings from Render."""
-    mail_server = os.environ.get("MAIL_SERVER", "").strip()
-    mail_port = int(os.environ.get("MAIL_PORT", "587"))
-    mail_username = os.environ.get("MAIL_USERNAME", "").strip()
-    mail_password = os.environ.get("MAIL_PASSWORD", "")
-    use_tls = os.environ.get("MAIL_USE_TLS", "true").strip().lower() in {"1", "true", "yes", "on"}
-    sender = os.environ.get("MAIL_DEFAULT_SENDER", "").strip() or mail_username
+    """Send a password-reset email using the Resend API."""
+    import resend
+    from html import escape
 
-    if not mail_server or not mail_username or not mail_password or not sender:
-        raise RuntimeError("Password-reset email settings are incomplete.")
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
 
-    message = EmailMessage()
-    message["Subject"] = "Reset your PlantCare password"
-    message["From"] = sender
-    message["To"] = user.email
-    message.set_content(
-        f"Hello {user.name},\n\n"
+    if not api_key:
+        raise RuntimeError("RESEND_API_KEY is not configured.")
+
+    if not user.email:
+        raise RuntimeError("This account has no email address.")
+
+    resend.api_key = api_key
+
+    name = escape(user.name or "PlantCare user")
+    safe_url = escape(reset_url, quote=True)
+
+    text_body = (
+        f"Hello {user.name or 'PlantCare user'},\n\n"
         "We received a request to reset your PlantCare password.\n"
-        "Use the secure link below within 1 hour to choose a new password:\n\n"
+        "Use the secure link below within 1 hour:\n\n"
         f"{reset_url}\n\n"
-        "If you did not request this, you can ignore this email. Your password will not change.\n\n"
+        "If you did not request this, you can ignore this email.\n\n"
         "PlantCare"
     )
 
-    with smtplib.SMTP(mail_server, mail_port, timeout=20) as smtp:
-        smtp.ehlo()
-        if use_tls:
-            smtp.starttls()
-            smtp.ehlo()
-        smtp.login(mail_username, mail_password)
-        smtp.send_message(message)
-
+    resend.Emails.send({
+        "from": "PlantCare <onboarding@resend.dev>",
+        "to": [user.email],
+        "subject": "Reset your PlantCare password",
+        "html": (
+            f"<p>Hello {name},</p>"
+            "<p>We received a request to reset your PlantCare password.</p>"
+            f'<p><a href="{safe_url}">Reset your password</a></p>'
+            "<p>This link expires in 1 hour. If you did not request "
+            "this, you can ignore this email.</p>"
+            "<p>PlantCare</p>"
+        ),
+        "text": text_body,
+    })
 
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
