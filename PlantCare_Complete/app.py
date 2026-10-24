@@ -203,30 +203,7 @@ def send_password_reset_email(user, reset_url):
         "text": text_body,
     })
 
-@app.route("/forgot-password", methods=["GET", "POST"])
-def forgot_password():
-    if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        user = User.query.filter_by(email=email).first() if email else None
 
-        # Keep the response the same whether or not this email is registered.
-        if user:
-            try:
-                serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
-                token = serializer.dumps(user.email, salt="plantcare-password-reset")
-                reset_url = url_for("reset_password", token=token, _external=True)
-                send_password_reset_email(user, reset_url)
-            except Exception:
-                app.logger.exception("Could not send a PlantCare password-reset email.")
-
-        flash(
-            "If an account exists for that email, a password-reset link has been sent. "
-            "Please check your inbox and spam folder.",
-            "info"
-        )
-        return redirect(url_for("forgot_password"))
-
-    return render_template("reset_password.html")
 
 
 @app.route("/reset-password/<token>", methods=["GET", "POST"])
