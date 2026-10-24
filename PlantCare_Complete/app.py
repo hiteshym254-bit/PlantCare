@@ -1,7 +1,5 @@
 import os
 from datetime import date, datetime, timedelta
-import smtplib
-from email.message import EmailMessage
 from functools import wraps
 from urllib.parse import urlparse
 
@@ -9,9 +7,8 @@ from flask import (
     Flask, render_template, request, redirect, url_for,
     session, flash, jsonify, send_from_directory
 )
-from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func, inspect, text
+from sqlalchemy import func
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -32,7 +29,6 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
     username = db.Column(db.String(40), unique=True, nullable=False, index=True)
-    email = db.Column(db.String(254), unique=True, nullable=True, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     plants = db.relationship("Plant", backref="owner", lazy=True, cascade="all, delete-orphan")
@@ -49,9 +45,6 @@ class Plant(db.Model):
     sunlight = db.Column(db.String(40), default="Indirect sunlight", nullable=False)
     notes = db.Column(db.Text, default="", nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    watering_logs = db.relationship(
-        "WateringLog", back_populates="plant", cascade="all, delete-orphan"
-    )
 
     @property
     def next_watering(self):
@@ -73,15 +66,6 @@ class Plant(db.Model):
         return f"In {delta} days"
 
 
-class WateringLog(db.Model):
-    """A history record for each time a user marks a plant as watered."""
-    id = db.Column(db.Integer, primary_key=True)
-    plant_id = db.Column(db.Integer, db.ForeignKey("plant.id"), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
-    watered_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    plant = db.relationship("Plant", back_populates="watering_logs")
-
-
 def current_user():
     user_id = session.get("user_id")
     return db.session.get(User, user_id) if user_id else None
@@ -94,7 +78,46 @@ def login_required(view):
             flash("Please sign in to continue.", "info")
             return redirect(url_for("login"))
         return view(*args, **kwargs)
-            except ValueError:
+    return wrapped
+
+
+@app.context_processor
+def inject_user():
+    return {"logged_in_user": current_user(), "today": date.today()}
+
+
+@app.route("/")
+def index():
+    if current_user():
+        return redirect(url_for("dashboard"))
+    return redirect(url_for("login"))
+
+
+@app.route("/register", methods=["GET", "POST"])name = request.form.get("name", "").strip()
+    plant_type = request.form.get("plant_type", "").strip()
+    frequency_raw = request.form.get("watering_frequency", "3").strip()
+    last_raw = request.form.get("last_watered", "").strip()
+    fertilizer_raw = request.form.get("fertilizer_date", "").strip()
+    sunlight = request.form.get("sunlight", "Indirect sunlight").strip()
+    notes = request.form.get("notes", "").strip()
+
+    if not name:
+        raise ValueError("Plant name is required.")
+    if len(name) > 100 or len(plant_type) > 80:
+        raise ValueError("Plant name or type is too long.")
+    try:
+        frequency = int(frequency_raw)
+        if not 1 <= frequency <= 365:
+            raise ValueError
+    except ValueError:
+        raise ValueError("Watering frequency must be between 1 and 365 days.")
+    try:
+        last_watered = date.fromisoformat(last_raw) if last_raw else date.today()
+    except ValueError:
+        raise ValueError("Please enter a valid last-watered date.")
+    try:
+        fertilizer_date = date.fromisoformat(fertilizer_raw) if fertilizer_raw else None
+    except ValueError:
         raise ValueError("Please enter a valid fertilizer date.")
     if len(notes) > 3000:
         raise ValueError("Notes must be 3000 characters or fewer.")
@@ -144,7 +167,6 @@ def edit_plant(plant_id):
 def water_plant(plant_id):
     plant = Plant.query.filter_by(id=plant_id, user_id=current_user().id).first_or_404()
     plant.last_watered = date.today()
-    db.session.add(WateringLog(plant_id=plant.id, user_id=current_user().id))
     db.session.commit()
     flash(f"{plant.name} marked as watered today.", "success")
     return redirect(request.referrer or url_for("dashboard"))
@@ -179,28 +201,10 @@ def health():
     return jsonify(status="ok")
 
 
-
 with app.app_context():
     db.create_all()
-
-    user_columns = {
-        column["name"]
-        for column in inspect(db.engine).get_columns("user")
-    }
-
-    with db.engine.begin() as connection:
-        if "email" not in user_columns:
-            connection.exec_driver_sql(
-                'ALTER TABLE "user" ADD COLUMN email VARCHAR(254)'
-            )
-
-        connection.exec_driver_sql(
-            'CREATE UNIQUE INDEX IF NOT EXISTS ix_user_email '
-            'ON "user" (email)'
-        )
-
 
 
 if __name__ == "__main__":
     # Local development only. For public hosting use: gunicorn app:app
-    app.run(debug=os.environ.get("FLASK_DEBUG") == "1", host="127.0.0.1", port=int(os.environ.get("PORT", "5000")))
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1", host="127.0.0.1", port=int(os.environ.get("PORT", 5000)))
