@@ -93,7 +93,8 @@ def index():
     return redirect(url_for("login"))
 
 
-@app.route("/register", methods=["GET", "POST"])name = request.form.get("name", "").strip()
+@app.route("/register", methods=["GET", "POST"])
+    name = request.form.get("name", "").strip()
     plant_type = request.form.get("plant_type", "").strip()
     frequency_raw = request.form.get("watering_frequency", "3").strip()
     last_raw = request.form.get("last_watered", "").strip()
