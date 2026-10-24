@@ -94,6 +94,10 @@ def index():
 
 
 @app.route("/register", methods=["GET", "POST"])
+    def register():
+    if current_user():
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
     name = request.form.get("name", "").strip()
     plant_type = request.form.get("plant_type", "").strip()
     frequency_raw = request.form.get("watering_frequency", "3").strip()
