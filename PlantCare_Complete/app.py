@@ -94,10 +94,70 @@ def index():
 
 
 @app.route("/register", methods=["GET", "POST"])
-    def register():
+def register():
     if current_user():
         return redirect(url_for("dashboard"))
     if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        username = request.form.get("username", "").strip().lower()
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+        if not name or not username or not password:
+            flash("Please fill in every required field.", "error")
+        elif len(name) > 80 or len(username) > 40:
+            flash("Name or username is too long.", "error")
+        elif len(password) < 8:
+            flash("Use a password with at least 8 characters.", "error")
+        elif password != confirm:
+            flash("Passwords do not match.", "error")
+        elif User.query.filter_by(username=username).first():
+            flash("That username is already registered. Please sign in.", "error")
+        else:
+            user = User(name=name, username=username, password_hash=generate_password_hash(password))
+            db.session.add(user)
+            db.session.commit()
+            session.clear()
+            session["user_id"] = user.id
+            flash("Welcome to PlantCare! Add your first plant.", "success")
+            return redirect(url_for("dashboard"))
+    return render_template("register.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user():
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
+        username = request.form.get("username", "").strip().lower()
+        password = request.form.get("password", "")
+        user = User.query.filter_by(username=username).first()
+        if user and check_password_hash(user.password_hash, password):
+            session.clear()
+            session["user_id"] = user.id
+            return redirect(url_for("dashboard"))
+        flash("Incorrect username or password.", "error")
+    return render_template("login.html")
+
+
+@app.route("/logout", methods=["POST"])
+@login_required
+def logout():
+    session.clear()
+    flash("You have signed out.", "success")
+    return redirect(url_for("login"))
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    user = current_user()
+    plants = Plant.query.filter_by(user_id=user.id).order_by(Plant.name.asc()).all()
+    due = sorted([p for p in plants if p.days_until_water <= 0], key=lambda p: p.days_until_water)
+    upcoming = sorted([p for p in plants if p.days_until_water > 0], key=lambda p: p.days_until_water)[:5]
+    return render_template("dashboard.html", plants=plants, due=due, upcoming=upcoming)
+
+
+def parse_plant_form():
     name = request.form.get("name", "").strip()
     plant_type = request.form.get("plant_type", "").strip()
     frequency_raw = request.form.get("watering_frequency", "3").strip()
