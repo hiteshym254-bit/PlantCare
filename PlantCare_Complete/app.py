@@ -49,6 +49,9 @@ class Plant(db.Model):
     sunlight = db.Column(db.String(40), default="Indirect sunlight", nullable=False)
     notes = db.Column(db.Text, default="", nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    watering_logs = db.relationship(
+        "WateringLog", back_populates="plant", cascade="all, delete-orphan"
+    )
 
     @property
     def next_watering(self):
@@ -70,6 +73,15 @@ class Plant(db.Model):
         return f"In {delta} days"
 
 
+class WateringLog(db.Model):
+    """A history record for each time a user marks a plant as watered."""
+    id = db.Column(db.Integer, primary_key=True)
+    plant_id = db.Column(db.Integer, db.ForeignKey("plant.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    watered_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    plant = db.relationship("Plant", back_populates="watering_logs")
+
+
 def current_user():
     user_id = session.get("user_id")
     return db.session.get(User, user_id) if user_id else None
@@ -82,213 +94,7 @@ def login_required(view):
             flash("Please sign in to continue.", "info")
             return redirect(url_for("login"))
         return view(*args, **kwargs)
-    return wrapped
-
-
-@app.context_processor
-def inject_user():
-    return {"logged_in_user": current_user(), "today": date.today()}
-
-
-@app.route("/")
-def index():
-    if current_user():
-        return redirect(url_for("dashboard"))
-    return redirect(url_for("login"))
-    return redirect(url_for("login"))
-
-
-@app.route("/register", methods=["GET", "POST"])
-
-
-
-def register():
-    if current_user():
-        return redirect(url_for("dashboard"))
-
-    if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        username = request.form.get("username", "").strip().lower()
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
-        confirm = request.form.get("confirm_password", "")
-
-        if not name or not username or not email or not password:
-            flash("Please fill in every required field.", "error")
-        elif len(name) > 80 or len(username) > 40:
-            flash("Name or username is too long.", "error")
-        elif len(email) > 254 or "@" not in email:
-            flash("Please enter a valid email address.", "error")
-        elif len(password) < 8:
-            flash("Use a password with at least 8 characters.", "error")
-        elif password != confirm:
-            flash("Passwords do not match.", "error")
-        elif User.query.filter_by(username=username).first():
-            flash("That username is already registered. Please sign in.", "error")
-        elif User.query.filter_by(email=email).first():
-            flash("That email is already registered. Please sign in.", "error")
-        else:
-            user = User(
-                name=name,
-                username=username,
-                email=email,
-                password_hash=generate_password_hash(password)
-            )
-            db.session.add(user)
-            db.session.commit()
-            session.clear()
-            session["user_id"] = user.id
-            flash("Welcome to PlantCare! Add your first plant.", "success")
-            return redirect(url_for("dashboard"))
-
-    return render_template("register.html")
-
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if current_user():
-        return redirect(url_for("dashboard"))
-    if request.method == "POST":
-        username = request.form.get("username", "").strip().lower()
-        password = request.form.get("password", "")
-        user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password_hash, password):
-            session.clear()
-            session["user_id"] = user.id
-            return redirect(url_for("dashboard"))
-        flash("Incorrect username or password.", "error")
-    return render_template("login.html")
-    
-
-def send_password_reset_email(user, reset_url):
-    """Send a password-reset email using the Resend API."""
-    import resend
-    from html import escape
-
-    api_key = os.environ.get("RESEND_API_KEY", "").strip()
-
-    if not api_key:
-        raise RuntimeError("RESEND_API_KEY is not configured.")
-
-    if not user.email:
-        raise RuntimeError("This account has no email address.")
-
-    resend.api_key = api_key
-
-    name = escape(user.name or "PlantCare user")
-    safe_url = escape(reset_url, quote=True)
-
-    text_body = (
-        f"Hello {user.name or 'PlantCare user'},\n\n"
-        "We received a request to reset your PlantCare password.\n"
-        "Use the secure link below within 1 hour:\n\n"
-        f"{reset_url}\n\n"
-        "If you did not request this, you can ignore this email.\n\n"
-        "PlantCare"
-    )
-
-    resend.Emails.send({
-        "from": "PlantCare <onboarding@resend.dev>",
-        "to": [user.email],
-        "subject": "Reset your PlantCare password",
-        "html": (
-            f"<p>Hello {name},</p>"
-            "<p>We received a request to reset your PlantCare password.</p>"
-            f'<p><a href="{safe_url}">Reset your password</a></p>'
-            "<p>This link expires in 1 hour. If you did not request "
-            "this, you can ignore this email.</p>"
-            "<p>PlantCare</p>"
-        ),
-        "text": text_body,
-    })
-
-
-
-
-@app.route("/reset-password/<token>", methods=["GET", "POST"])
-def reset_password(token):
-    serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
-    try:
-        email = serializer.loads(
-            token,
-            salt="plantcare-password-reset",
-            max_age=3600
-        )
-    except SignatureExpired:
-        flash("That password-reset link has expired. Please request a new one.", "error")
-        return redirect(url_for("forgot_password"))
-    except BadSignature:
-        flash("That password-reset link is invalid. Please request a new one.", "error")
-        return redirect(url_for("forgot_password"))
-
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        flash("That password-reset link is invalid. Please request a new one.", "error")
-        return redirect(url_for("forgot_password"))
-
-    if request.method == "POST":
-        password = request.form.get("password", "")
-        confirm_password = request.form.get("confirm_password", "")
-
-        if len(password) < 8:
-            flash("Use a password with at least 8 characters.", "error")
-        elif password != confirm_password:
-            flash("Passwords do not match.", "error")
-        else:
-            user.password_hash = generate_password_hash(password)
-            db.session.commit()
-            flash("Your password has been reset. Please sign in.", "success")
-            return redirect(url_for("login"))
-
-    return render_template("choose_new_password.html", token=token)
-
-
-
-@app.route("/logout", methods=["POST"])
-@login_required
-def logout():
-    session.clear()
-    flash("You have signed out.", "success")
-    return redirect(url_for("login"))
-
-
-@app.route("/dashboard")
-@login_required
-def dashboard():
-    user = current_user()
-    plants = Plant.query.filter_by(user_id=user.id).order_by(Plant.name.asc()).all()
-    due = sorted([p for p in plants if p.days_until_water <= 0], key=lambda p: p.days_until_water)
-    upcoming = sorted([p for p in plants if p.days_until_water > 0], key=lambda p: p.days_until_water)[:5]
-    return render_template("dashboard.html", plants=plants, due=due, upcoming=upcoming)
-
-
-def parse_plant_form():
-    name = request.form.get("name", "").strip()
-    plant_type = request.form.get("plant_type", "").strip()
-    frequency_raw = request.form.get("watering_frequency", "3").strip()
-    last_raw = request.form.get("last_watered", "").strip()
-    fertilizer_raw = request.form.get("fertilizer_date", "").strip()
-    sunlight = request.form.get("sunlight", "Indirect sunlight").strip()
-    notes = request.form.get("notes", "").strip()
-
-    if not name:
-        raise ValueError("Plant name is required.")
-    if len(name) > 100 or len(plant_type) > 80:
-        raise ValueError("Plant name or type is too long.")
-    try:
-        frequency = int(frequency_raw)
-        if not 1 <= frequency <= 365:
-            raise ValueError
-    except ValueError:
-        raise ValueError("Watering frequency must be between 1 and 365 days.")
-    try:
-        last_watered = date.fromisoformat(last_raw) if last_raw else date.today()
-    except ValueError:
-        raise ValueError("Please enter a valid last-watered date.")
-    try:
-        fertilizer_date = date.fromisoformat(fertilizer_raw) if fertilizer_raw else None
-    except ValueError:
+            except ValueError:
         raise ValueError("Please enter a valid fertilizer date.")
     if len(notes) > 3000:
         raise ValueError("Notes must be 3000 characters or fewer.")
@@ -338,6 +144,7 @@ def edit_plant(plant_id):
 def water_plant(plant_id):
     plant = Plant.query.filter_by(id=plant_id, user_id=current_user().id).first_or_404()
     plant.last_watered = date.today()
+    db.session.add(WateringLog(plant_id=plant.id, user_id=current_user().id))
     db.session.commit()
     flash(f"{plant.name} marked as watered today.", "success")
     return redirect(request.referrer or url_for("dashboard"))
