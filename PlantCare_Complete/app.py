@@ -64,7 +64,6 @@ class Plant(db.Model):
         default=datetime.utcnow,
         nullable=False
     )
-
     @property
     def next_watering(self):
         return self.last_watered + timedelta(days=self.watering_frequency)
