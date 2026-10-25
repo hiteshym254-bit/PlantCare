@@ -1,11 +1,12 @@
 
-const CACHE_NAME = "plantcare-shell-v1";
+const CACHE_NAME = "plantcare-shell-v2";
 
 const APP_SHELL = [
   "/login",
   "/static/style.css",
   "/static/app.js",
   "/static/leaf.svg",
+  "/static/plantcare-icon.png?v=20261025",
   "/manifest.webmanifest"
 ];
 
