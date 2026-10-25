@@ -1,5 +1,6 @@
 import os
 import json
+import secrets
 from datetime import date, datetime, timedelta
 from functools import wraps
 from urllib.parse import urlparse
@@ -103,6 +104,26 @@ class PushSubscription(db.Model):
     endpoint = db.Column(db.Text, unique=True, nullable=False)
     subscription_json = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PushReminderLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        index=True
+    )
+    reminder_date = db.Column(db.Date, nullable=False)
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id",
+            "reminder_date",
+            name="uq_push_reminder_log_user_date"
+        ),
+    )
 
 
 def current_user():
@@ -496,6 +517,136 @@ def push_test():
     return jsonify(
         error="PlantCare could not deliver the test notification. Check Render logs and VAPID settings."
     ), 502
+
+
+@app.route("/api/push/send-daily-reminders", methods=["POST"])
+def send_daily_push_reminders():
+    # This route is intended for a scheduler, not for browser visits.
+    # The secret must be configured in Render and in the scheduled workflow.
+    configured_secret = os.environ.get("PLANTCARE_CRON_SECRET", "").strip()
+    provided_authorization = request.headers.get("Authorization", "")
+
+    if not configured_secret:
+        return jsonify(error="Daily reminders are not configured."), 503
+
+    expected_authorization = "Bearer " + configured_secret
+    if not secrets.compare_digest(provided_authorization, expected_authorization):
+        return jsonify(error="Unauthorized."), 401
+
+    private_key = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
+    subject = os.environ.get("VAPID_CLAIMS_SUBJECT", "").strip()
+    if not private_key or not subject.startswith("mailto:"):
+        return jsonify(error="Push notification server settings are incomplete."), 503
+
+    today = date.today()
+    due_by_user = {}
+
+    # Evaluate due dates using the same rule as the dashboard.
+    for plant in Plant.query.all():
+        if plant.days_until_water <= 0:
+            due_by_user.setdefault(plant.user_id, []).append(plant)
+
+    users_notified = 0
+    subscriptions_sent = 0
+    users_without_subscriptions = 0
+    already_sent_today = 0
+    failed_subscriptions = 0
+    expired_subscription_ids = []
+
+    for user_id, due_plants in due_by_user.items():
+        already_logged = PushReminderLog.query.filter_by(
+            user_id=user_id,
+            reminder_date=today
+        ).first()
+
+        # Avoid sending repeated daily reminders to the same account/date.
+        if already_logged:
+            already_sent_today += 1
+            continue
+
+        subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
+        if not subscriptions:
+            users_without_subscriptions += 1
+            continue
+
+        due_plants.sort(key=lambda plant: (plant.days_until_water, plant.name.lower()))
+        names = [plant.name for plant in due_plants]
+        if len(names) == 1:
+            if due_plants[0].days_until_water < 0:
+                body = names[0] + " is overdue for watering."
+            else:
+                body = names[0] + " needs watering today."
+        else:
+            visible_names = ", ".join(names[:3])
+            extra_count = len(names) - 3
+            if extra_count > 0:
+                visible_names += ", and " + str(extra_count) + " more"
+            body = str(len(names)) + " plants need watering: " + visible_names + "."
+
+        notification = {
+            "title": "PlantCare watering reminder 🌿",
+            "body": body,
+            "url": "/dashboard",
+            "tag": "plantcare-watering-" + today.isoformat()
+        }
+
+        sent_for_user = 0
+        for subscription in subscriptions:
+            try:
+                webpush(
+                    subscription_info=json.loads(subscription.subscription_json),
+                    data=json.dumps(notification, ensure_ascii=False),
+                    vapid_private_key=private_key,
+                    vapid_claims={"sub": subject}
+                )
+                sent_for_user += 1
+                subscriptions_sent += 1
+            except WebPushException as exc:
+                response = getattr(exc, "response", None)
+                status_code = getattr(response, "status_code", None)
+                failed_subscriptions += 1
+                app.logger.warning(
+                    "Daily push failed for subscription %s (status %s)",
+                    subscription.id,
+                    status_code
+                )
+                if status_code in (404, 410):
+                    expired_subscription_ids.append(subscription.id)
+            except (ValueError, TypeError, json.JSONDecodeError):
+                failed_subscriptions += 1
+                expired_subscription_ids.append(subscription.id)
+                app.logger.warning(
+                    "Stored push subscription %s is invalid",
+                    subscription.id
+                )
+
+        # Record only if at least one device accepted the push, allowing a later
+        # scheduler retry if every subscription failed.
+        if sent_for_user:
+            db.session.add(
+                PushReminderLog(
+                    user_id=user_id,
+                    reminder_date=today
+                )
+            )
+            db.session.commit()
+            users_notified += 1
+
+    if expired_subscription_ids:
+        PushSubscription.query.filter(
+            PushSubscription.id.in_(set(expired_subscription_ids))
+        ).delete(synchronize_session=False)
+        db.session.commit()
+
+    return jsonify(
+        success=True,
+        date=today.isoformat(),
+        users_notified=users_notified,
+        subscriptions_sent=subscriptions_sent,
+        users_without_subscriptions=users_without_subscriptions,
+        already_sent_today=already_sent_today,
+        failed_subscriptions=failed_subscriptions
+    )
 
 
 @app.route("/manifest.webmanifest")
