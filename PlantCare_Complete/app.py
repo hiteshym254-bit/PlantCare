@@ -48,6 +48,23 @@ class Plant(db.Model):
     notes = db.Column(db.Text, default="", nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+
+    class PushSubscription(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        index=True
+    )
+    endpoint = db.Column(db.Text, unique=True, nullable=False)
+    subscription_json = db.Column(db.Text, nullable=False)
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
     @property
     def next_watering(self):
         return self.last_watered + timedelta(days=self.watering_frequency)
