@@ -12,7 +12,7 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/static/plantcare-icon.png",
+      "src": "/static/plantcare-icon.png?v=20261025",
       "sizes": "1254x1254",
       "type": "image/png",
       "purpose": "any"
