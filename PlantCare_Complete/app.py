@@ -14,16 +14,26 @@ from sqlalchemy import func
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-change-this-secret-before-deploying")
+app.config["SECRET_KEY"] = os.environ.get(
+    "SECRET_KEY",
+    "dev-only-change-this-secret-before-deploying"
+)
+
 database_url = os.environ.get("DATABASE_URL", "sqlite:///plantcare.db")
 if database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql+psycopg://", 1)
+    database_url = database_url.replace(
+        "postgres://", "postgresql+psycopg://", 1
+    )
 elif database_url.startswith("postgresql://") and "+psycopg" not in database_url:
-    database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    database_url = database_url.replace(
+        "postgresql://", "postgresql+psycopg://", 1
+    )
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True} if not database_url.startswith("sqlite") else {}
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = (
+    {"pool_pre_ping": True} if not database_url.startswith("sqlite") else {}
+)
 db = SQLAlchemy(app)
 
 
@@ -33,23 +43,15 @@ class User(db.Model):
     username = db.Column(db.String(40), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    plants = db.relationship("Plant", backref="owner", lazy=True, cascade="all, delete-orphan")
+    plants = db.relationship(
+        "Plant",
+        backref="owner",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
 
 
 class Plant(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
-    name = db.Column(db.String(100), nullable=False)
-    plant_type = db.Column(db.String(80), default="", nullable=False)
-    watering_frequency = db.Column(db.Integer, default=3, nullable=False)
-    last_watered = db.Column(db.Date, nullable=False, default=date.today)
-    fertilizer_date = db.Column(db.Date, nullable=True)
-    sunlight = db.Column(db.String(40), default="Indirect sunlight", nullable=False)
-    notes = db.Column(db.Text, default="", nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-
-
-    class PushSubscription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(
         db.Integer,
@@ -57,13 +59,19 @@ class Plant(db.Model):
         nullable=False,
         index=True
     )
-    endpoint = db.Column(db.Text, unique=True, nullable=False)
-    subscription_json = db.Column(db.Text, nullable=False)
-    created_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow,
+    name = db.Column(db.String(100), nullable=False)
+    plant_type = db.Column(db.String(80), default="", nullable=False)
+    watering_frequency = db.Column(db.Integer, default=3, nullable=False)
+    last_watered = db.Column(db.Date, nullable=False, default=date.today)
+    fertilizer_date = db.Column(db.Date, nullable=True)
+    sunlight = db.Column(
+        db.String(40),
+        default="Indirect sunlight",
         nullable=False
     )
+    notes = db.Column(db.Text, default="", nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
     @property
     def next_watering(self):
         return self.last_watered + timedelta(days=self.watering_frequency)
@@ -84,6 +92,19 @@ class Plant(db.Model):
         return f"In {delta} days"
 
 
+class PushSubscription(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        index=True
+    )
+    endpoint = db.Column(db.Text, unique=True, nullable=False)
+    subscription_json = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
 def current_user():
     user_id = session.get("user_id")
     return db.session.get(User, user_id) if user_id else None
@@ -97,6 +118,11 @@ def login_required(view):
             return redirect(url_for("login"))
         return view(*args, **kwargs)
     return wrapped
+
+
+def push_api_user():
+    """Return the signed-in user, or None for an unauthenticated API request."""
+    return current_user()
 
 
 @app.context_processor
@@ -115,11 +141,13 @@ def index():
 def register():
     if current_user():
         return redirect(url_for("dashboard"))
+
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         username = request.form.get("username", "").strip().lower()
         password = request.form.get("password", "")
         confirm = request.form.get("confirm_password", "")
+
         if not name or not username or not password:
             flash("Please fill in every required field.", "error")
         elif len(name) > 80 or len(username) > 40:
@@ -131,13 +159,18 @@ def register():
         elif User.query.filter_by(username=username).first():
             flash("That username is already registered. Please sign in.", "error")
         else:
-            user = User(name=name, username=username, password_hash=generate_password_hash(password))
+            user = User(
+                name=name,
+                username=username,
+                password_hash=generate_password_hash(password)
+            )
             db.session.add(user)
             db.session.commit()
             session.clear()
             session["user_id"] = user.id
             flash("Welcome to PlantCare! Add your first plant.", "success")
             return redirect(url_for("dashboard"))
+
     return render_template("register.html")
 
 
@@ -145,15 +178,19 @@ def register():
 def login():
     if current_user():
         return redirect(url_for("dashboard"))
+
     if request.method == "POST":
         username = request.form.get("username", "").strip().lower()
         password = request.form.get("password", "")
         user = User.query.filter_by(username=username).first()
+
         if user and check_password_hash(user.password_hash, password):
             session.clear()
             session["user_id"] = user.id
             return redirect(url_for("dashboard"))
+
         flash("Incorrect username or password.", "error")
+
     return render_template("login.html")
 
 
@@ -170,9 +207,20 @@ def logout():
 def dashboard():
     user = current_user()
     plants = Plant.query.filter_by(user_id=user.id).order_by(Plant.name.asc()).all()
-    due = sorted([p for p in plants if p.days_until_water <= 0], key=lambda p: p.days_until_water)
-    upcoming = sorted([p for p in plants if p.days_until_water > 0], key=lambda p: p.days_until_water)[:5]
-    return render_template("dashboard.html", plants=plants, due=due, upcoming=upcoming)
+    due = sorted(
+        [plant for plant in plants if plant.days_until_water <= 0],
+        key=lambda plant: plant.days_until_water
+    )
+    upcoming = sorted(
+        [plant for plant in plants if plant.days_until_water > 0],
+        key=lambda plant: plant.days_until_water
+    )[:5]
+    return render_template(
+        "dashboard.html",
+        plants=plants,
+        due=due,
+        upcoming=upcoming
+    )
 
 
 def parse_plant_form():
@@ -188,29 +236,41 @@ def parse_plant_form():
         raise ValueError("Plant name is required.")
     if len(name) > 100 or len(plant_type) > 80:
         raise ValueError("Plant name or type is too long.")
+
     try:
         frequency = int(frequency_raw)
         if not 1 <= frequency <= 365:
             raise ValueError
     except ValueError:
         raise ValueError("Watering frequency must be between 1 and 365 days.")
+
     try:
         last_watered = date.fromisoformat(last_raw) if last_raw else date.today()
     except ValueError:
         raise ValueError("Please enter a valid last-watered date.")
+
     try:
-        fertilizer_date = date.fromisoformat(fertilizer_raw) if fertilizer_raw else None
+        fertilizer_date = (
+            date.fromisoformat(fertilizer_raw) if fertilizer_raw else None
+        )
     except ValueError:
         raise ValueError("Please enter a valid fertilizer date.")
+
     if len(notes) > 3000:
         raise ValueError("Notes must be 3000 characters or fewer.")
+
     allowed_sun = {"Full sun", "Partial sun", "Indirect sunlight", "Shade"}
     if sunlight not in allowed_sun:
         sunlight = "Indirect sunlight"
+
     return {
-        "name": name, "plant_type": plant_type, "watering_frequency": frequency,
-        "last_watered": last_watered, "fertilizer_date": fertilizer_date,
-        "sunlight": sunlight, "notes": notes
+        "name": name,
+        "plant_type": plant_type,
+        "watering_frequency": frequency,
+        "last_watered": last_watered,
+        "fertilizer_date": fertilizer_date,
+        "sunlight": sunlight,
+        "notes": notes
     }
 
 
@@ -226,13 +286,23 @@ def add_plant():
             return redirect(url_for("dashboard"))
         except ValueError as exc:
             flash(str(exc), "error")
-    return render_template("plant_form.html", plant=None, form_title="Add a plant", submit_label="Save plant")
+
+    return render_template(
+        "plant_form.html",
+        plant=None,
+        form_title="Add a plant",
+        submit_label="Save plant"
+    )
 
 
 @app.route("/plants/<int:plant_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_plant(plant_id):
-    plant = Plant.query.filter_by(id=plant_id, user_id=current_user().id).first_or_404()
+    plant = Plant.query.filter_by(
+        id=plant_id,
+        user_id=current_user().id
+    ).first_or_404()
+
     if request.method == "POST":
         try:
             for key, value in parse_plant_form().items():
@@ -242,13 +312,22 @@ def edit_plant(plant_id):
             return redirect(url_for("dashboard"))
         except ValueError as exc:
             flash(str(exc), "error")
-    return render_template("plant_form.html", plant=plant, form_title="Edit plant", submit_label="Save changes")
+
+    return render_template(
+        "plant_form.html",
+        plant=plant,
+        form_title="Edit plant",
+        submit_label="Save changes"
+    )
 
 
 @app.route("/plants/<int:plant_id>/water", methods=["POST"])
 @login_required
 def water_plant(plant_id):
-    plant = Plant.query.filter_by(id=plant_id, user_id=current_user().id).first_or_404()
+    plant = Plant.query.filter_by(
+        id=plant_id,
+        user_id=current_user().id
+    ).first_or_404()
     plant.last_watered = date.today()
     db.session.commit()
     flash(f"{plant.name} marked as watered today.", "success")
@@ -258,7 +337,10 @@ def water_plant(plant_id):
 @app.route("/plants/<int:plant_id>/delete", methods=["POST"])
 @login_required
 def delete_plant(plant_id):
-    plant = Plant.query.filter_by(id=plant_id, user_id=current_user().id).first_or_404()
+    plant = Plant.query.filter_by(
+        id=plant_id,
+        user_id=current_user().id
+    ).first_or_404()
     name = plant.name
     db.session.delete(plant)
     db.session.commit()
@@ -266,14 +348,172 @@ def delete_plant(plant_id):
     return redirect(url_for("dashboard"))
 
 
+@app.route("/api/push/public-key", methods=["GET"])
+def push_public_key():
+    public_key = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
+    if not public_key:
+        return jsonify(error="Push notifications are not configured."), 503
+    return jsonify(publicKey=public_key)
+
+
+@app.route("/api/push/subscribe", methods=["POST"])
+@login_required
+def push_subscribe():
+    user = push_api_user()
+    if not user:
+        return jsonify(error="Please sign in first."), 401
+
+    subscription = request.get_json(silent=True)
+    if not isinstance(subscription, dict):
+        return jsonify(error="A valid subscription is required."), 400
+
+    endpoint = subscription.get("endpoint")
+    keys = subscription.get("keys")
+    if (
+        not isinstance(endpoint, str)
+        or not endpoint.startswith("https://")
+        or not isinstance(keys, dict)
+        or not isinstance(keys.get("p256dh"), str)
+        or not isinstance(keys.get("auth"), str)
+    ):
+        return jsonify(error="The browser subscription is incomplete."), 400
+
+    try:
+        serialized = json.dumps(subscription)
+        existing = PushSubscription.query.filter_by(endpoint=endpoint).first()
+
+        if existing:
+            existing.user_id = user.id
+            existing.subscription_json = serialized
+        else:
+            db.session.add(
+                PushSubscription(
+                    user_id=user.id,
+                    endpoint=endpoint,
+                    subscription_json=serialized
+                )
+            )
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Could not save push subscription")
+        return jsonify(error="Could not save the notification subscription."), 500
+
+    return jsonify(success=True, message="Notifications enabled for this device.")
+
+
+@app.route("/api/push/unsubscribe", methods=["POST"])
+@login_required
+def push_unsubscribe():
+    user = push_api_user()
+    if not user:
+        return jsonify(error="Please sign in first."), 401
+
+    payload = request.get_json(silent=True) or {}
+    endpoint = payload.get("endpoint")
+    if not isinstance(endpoint, str) or not endpoint:
+        return jsonify(error="A subscription endpoint is required."), 400
+
+    subscription = PushSubscription.query.filter_by(
+        endpoint=endpoint,
+        user_id=user.id
+    ).first()
+
+    if subscription:
+        db.session.delete(subscription)
+        db.session.commit()
+
+    return jsonify(success=True, message="Notification subscription removed.")
+
+
+@app.route("/api/push/test", methods=["POST"])
+@login_required
+def push_test():
+    user = push_api_user()
+    if not user:
+        return jsonify(error="Please sign in first."), 401
+
+    public_key = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
+    private_key = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
+    subject = os.environ.get("VAPID_CLAIMS_SUBJECT", "").strip()
+
+    if not public_key or not private_key or not subject.startswith("mailto:"):
+        return jsonify(error="Push notification server settings are incomplete."), 503
+
+    subscriptions = PushSubscription.query.filter_by(user_id=user.id).all()
+    if not subscriptions:
+        return jsonify(error="This account has no saved notification subscription yet."), 400
+
+    sent = 0
+    expired_ids = []
+
+    notification = {
+        "title": "PlantCare 🌿",
+        "body": "Your push notifications are working!",
+        "url": "/dashboard",
+        "tag": "plantcare-test"
+    }
+
+    for subscription in subscriptions:
+        try:
+            webpush(
+                subscription_info=json.loads(subscription.subscription_json),
+                data=json.dumps(notification, ensure_ascii=False),
+                vapid_private_key=private_key,
+                vapid_claims={"sub": subject}
+            )
+            sent += 1
+        except WebPushException as exc:
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            app.logger.warning(
+                "Push delivery failed for subscription %s (status %s)",
+                subscription.id,
+                status_code
+            )
+            if status_code in (404, 410):
+                expired_ids.append(subscription.id)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            app.logger.warning(
+                "Stored push subscription %s is invalid",
+                subscription.id
+            )
+            expired_ids.append(subscription.id)
+
+    if expired_ids:
+        PushSubscription.query.filter(
+            PushSubscription.id.in_(expired_ids)
+        ).delete(synchronize_session=False)
+        db.session.commit()
+
+    if sent:
+        return jsonify(
+            success=True,
+            sent=sent,
+            message="Test push notification sent to the subscribed device(s)."
+        )
+
+    return jsonify(
+        error="PlantCare could not deliver the test notification. Check Render logs and VAPID settings."
+    ), 502
+
+
 @app.route("/manifest.webmanifest")
 def manifest():
-    return send_from_directory("static", "manifest.webmanifest", mimetype="application/manifest+json")
+    return send_from_directory(
+        "static",
+        "manifest.webmanifest",
+        mimetype="application/manifest+json"
+    )
 
 
 @app.route("/service-worker.js")
 def service_worker():
-    response = send_from_directory("static", "service-worker.js", mimetype="application/javascript")
+    response = send_from_directory(
+        "static",
+        "service-worker.js",
+        mimetype="application/javascript"
+    )
     response.headers["Service-Worker-Allowed"] = "/"
     response.headers["Cache-Control"] = "no-cache"
     return response
@@ -285,9 +525,15 @@ def health():
 
 
 with app.app_context():
+    # Creates missing tables (including push_subscription) without dropping
+    # or replacing existing User or Plant tables.
     db.create_all()
 
 
 if __name__ == "__main__":
     # Local development only. For public hosting use: gunicorn app:app
-    app.run(debug=os.environ.get("FLASK_DEBUG") == "1", host="127.0.0.1", port=int(os.environ.get("PORT", 5000)))
+    app.run(
+        debug=os.environ.get("FLASK_DEBUG") == "1",
+        host="127.0.0.1",
+        port=int(os.environ.get("PORT", 5000))
+    )
