@@ -377,6 +377,24 @@ def push_public_key():
     return jsonify(publicKey=public_key)
 
 
+@app.route("/api/push/status", methods=["GET"])
+@login_required
+def push_status():
+    # Read-only diagnostic for the signed-in account; does not modify data.
+    user = current_user()
+    plants = Plant.query.filter_by(user_id=user.id).all()
+    due_count = sum(1 for plant in plants if plant.days_until_water <= 0)
+    subscription_count = PushSubscription.query.filter_by(user_id=user.id).count()
+
+    return jsonify(
+        success=True,
+        due_plants=due_count,
+        saved_subscriptions=subscription_count,
+        user_has_due_plants=due_count > 0,
+        account_has_push_subscription=subscription_count > 0
+    )
+
+
 @app.route("/api/push/subscribe", methods=["POST"])
 @login_required
 def push_subscribe():
