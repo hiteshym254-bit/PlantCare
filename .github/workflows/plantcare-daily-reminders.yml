@@ -1,0 +1,43 @@
+name: PlantCare daily watering reminders
+
+on:
+  # 02:37 UTC is 08:07 Asia/Kolkata.
+  # GitHub may delay scheduled runs during periods of high load.
+  schedule:
+    - cron: "37 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plantcare-daily-watering-reminders
+  cancel-in-progress: false
+
+jobs:
+  send-daily-reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send due-plant reminders
+        env:
+          PLANTCARE_CRON_SECRET: \${{ secrets.PLANTCARE_CRON_SECRET }}
+        shell: bash
+        run: |
+          if [ -z "$PLANTCARE_CRON_SECRET" ]; then
+            echo "Missing repository secret: PLANTCARE_CRON_SECRET"
+            exit 1
+          fi
+
+          curl \
+            --fail-with-body \
+            --silent \
+            --show-error \
+            --retry 3 \
+            --retry-delay 10 \
+            --retry-all-errors \
+            --max-time 120 \
+            --request POST \
+            --header "Authorization: Bearer $PLANTCARE_CRON_SECRET" \
+            --header "Accept: application/json" \
+            "https://plantcare-reminder-app.onrender.com/api/push/send-daily-reminders"
