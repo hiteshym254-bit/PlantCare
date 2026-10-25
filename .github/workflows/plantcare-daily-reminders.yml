@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Send due-plant reminders
         env:
-          PLANTCARE_CRON_SECRET: \${{ secrets.PLANTCARE_CRON_SECRET }}
+          PLANTCARE_CRON_SECRET: ${{ secrets.PLANTCARE_CRON_SECRET }}
         shell: bash
         run: |
           if [ -z "$PLANTCARE_CRON_SECRET" ]; then
